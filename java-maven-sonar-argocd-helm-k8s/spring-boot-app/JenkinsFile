@@ -7,8 +7,10 @@ pipeline {
   }
 
   environment {
-    SONAR_URL = "http://3.235.153.154:9000/"
-  }
+  JAVA_HOME = "/opt/java/openjdk"
+  PATH = "${JAVA_HOME}/bin:${PATH}"
+  SONAR_URL = "http://3.235.153.154:9000/"
+}
 
   stages {
     stage('Checkout') {
@@ -18,37 +20,35 @@ pipeline {
     }
 
     stage('Build and Test') {
-      steps {
-        sh '''
-          echo "Java info before build:"
-          java -version
-          readlink -f $(which java)
-          export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
-          export PATH=$JAVA_HOME/bin:$PATH
-          echo "JAVA_HOME=$JAVA_HOME"
-          mvn -version
-          cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
-          mvn clean package
-        '''
+  steps {
+    sh '''
+      export JAVA_HOME=/opt/java/openjdk
+      export PATH=$JAVA_HOME/bin:$PATH
+      echo "JAVA_HOME=$JAVA_HOME"
+      java -version
+      mvn -version
+      cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
+      mvn clean package
+    '''
+  }
+}
       }
     }
-
-    stage('Static Code Analysis') {
-      steps {
-        withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
-          sh '''
-            java -version
-            readlink -f $(which java)
-            export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
-            export PATH=$JAVA_HOME/bin:$PATH
-            echo "JAVA_HOME=$JAVA_HOME"
-            mvn -version
-            cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
-            mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=$SONAR_URL
-          '''
-        }
-      }
+stage('Static Code Analysis') {
+  steps {
+    withCredentials([string(credentialsId: 'sonarqube', variable: 'SONAR_AUTH_TOKEN')]) {
+      sh '''
+        export JAVA_HOME=/opt/java/openjdk
+        export PATH=$JAVA_HOME/bin:$PATH
+        java -version
+        mvn -version
+        cd java-maven-sonar-argocd-helm-k8s/spring-boot-app
+        mvn sonar:sonar -Dsonar.login=$SONAR_AUTH_TOKEN -Dsonar.host.url=$SONAR_URL
+      '''
     }
+  }
+}
+        
 
     stage('Build and Push Docker Image') {
       environment {
